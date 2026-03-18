@@ -1,9 +1,0 @@
-torch
-pandas
-numpy
-scikit-learn
-tqdm
-fastapi
-uvicorn
-paho-mqtt
-joblib

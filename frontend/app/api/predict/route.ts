@@ -17,44 +17,46 @@ export async function POST(req: Request) {
                             ? app.id.trim()
                             : '';
 
-                if (!applianceId || !Array.isArray(app?.sequence)) {
+                if (!applianceId) {
                     return null;
                 }
 
-                const normalizedSequence = app.sequence
-                    .map((point: any) => {
-                        if (Array.isArray(point)) {
-                            const voltage = Number(point[0]);
-                            const current = Number(point[1]);
-                            if (Number.isFinite(voltage) && Number.isFinite(current)) {
-                                return [voltage, current];
-                            }
-                            return null;
-                        }
+                // Handle both sequence array and single voltage/current
+                let voltage: number;
+                let current: number;
 
-                        const voltage = Number(point?.voltage);
-                        const current = Number(point?.current);
-                        if (Number.isFinite(voltage) && Number.isFinite(current)) {
-                            return [voltage, current];
-                        }
-
+                if (Array.isArray(app?.sequence) && app.sequence.length > 0) {
+                    // Take the last value from sequence
+                    const lastPoint = app.sequence[app.sequence.length - 1];
+                    if (Array.isArray(lastPoint)) {
+                        voltage = Number(lastPoint[0]);
+                        current = Number(lastPoint[1]);
+                    } else if (typeof lastPoint === 'object') {
+                        voltage = Number(lastPoint?.voltage);
+                        current = Number(lastPoint?.current);
+                    } else {
                         return null;
-                    })
-                    .filter((pair: any): pair is number[] => pair !== null);
+                    }
+                } else {
+                    // Use direct voltage/current values
+                    voltage = Number(app?.voltage);
+                    current = Number(app?.current);
+                }
 
-                if (normalizedSequence.length === 0) {
+                if (!Number.isFinite(voltage) || !Number.isFinite(current)) {
                     return null;
                 }
 
                 return {
                     appliance_id: applianceId,
-                    sequence: normalizedSequence,
+                    voltage: voltage,
+                    current: current
                 };
             })
             .filter((app: any) => app !== null);
 
         if (formattedAppliances.length === 0) {
-            return NextResponse.json({ error: 'No valid appliance sequences found' }, { status: 400 });
+            return NextResponse.json({ error: 'No valid appliance data found' }, { status: 400 });
         }
 
         const response = await fetch('http://127.0.0.1:8000/predict', {

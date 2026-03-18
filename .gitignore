@@ -9,7 +9,8 @@ remaining datas/
 venv/
 env/
 .env
-
+models/
+data/
 
 .DS_Store
 Thumbs.db

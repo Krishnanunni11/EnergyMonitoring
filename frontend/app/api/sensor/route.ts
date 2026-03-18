@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     const sensorResponse = await fetch('http://127.0.0.1:8000/sensor-data', {
-      cache: 'no-store' 
+      cache: 'no-store'
     });
 
     if (!sensorResponse.ok) {
@@ -16,17 +16,18 @@ export async function GET() {
 
     const appliancesForPrediction = sensorData
       .map((row: any) => {
-        const applianceId = typeof row?.appliance_id === 'string' ? row.appliance_id.trim() : '';
+        const plugId = typeof row?.plug_id === 'string' ? row.plug_id.trim() : '';
         const voltage = Number(row?.voltage);
         const current = Number(row?.current);
 
-        if (!applianceId || !Number.isFinite(voltage) || !Number.isFinite(current)) {
+        if (!plugId || !Number.isFinite(voltage) || !Number.isFinite(current)) {
           return null;
         }
 
         return {
-          appliance_id: applianceId,
-          sequence: [[voltage, current]]
+          appliance_id: plugId,
+          voltage: voltage,
+          current: current
         };
       })
       .filter((item: any) => item !== null);
@@ -53,12 +54,11 @@ export async function GET() {
     );
 
     const enrichedData = sensorData.map((row: any) => {
-      const prediction = predictionById.get(row?.appliance_id);
+      const prediction = predictionById.get(row?.plug_id);
       return {
         ...row,
-        status: prediction?.status ?? null,
-        usage_score: prediction?.usage_score ?? null,
-        probability: prediction?.probability ?? null
+        predicted_power: prediction?.predicted_power ?? null,
+        physics_power: prediction?.physics_power ?? null
       };
     });
 
