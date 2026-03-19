@@ -51,6 +51,7 @@ interface StatCardProps {
 }
 
 interface DeviceCardProps {
+  plugId: string;
   name: string;
   status: string;
   voltage: string;
@@ -62,6 +63,9 @@ interface DeviceCardProps {
   message?: string;
   type?: 'online' | 'warning';
   score: number;
+  onRelayControl: (plugId: string, state: 'ON' | 'OFF') => void;
+  isRelayActionPending?: boolean;
+  relayFeedback?: string;
 }
 
 // --- UI COMPONENTS ---
@@ -81,7 +85,23 @@ const StatCard: React.FC<StatCardProps> = ({ icon: Icon, label, value, unit, col
   </div>
 );
 
-const DeviceCard: React.FC<DeviceCardProps> = ({ name, status, voltage, current, power, predictedPower, threshold, deviation, message, type = 'online', score }) => {
+const DeviceCard: React.FC<DeviceCardProps> = ({
+  plugId,
+  name,
+  status,
+  voltage,
+  current,
+  power,
+  predictedPower,
+  threshold,
+  deviation,
+  message,
+  type = 'online',
+  score,
+  onRelayControl,
+  isRelayActionPending = false,
+  relayFeedback
+}) => {
   const isWarning = type === 'warning';
 
   return (
@@ -158,6 +178,34 @@ const DeviceCard: React.FC<DeviceCardProps> = ({ name, status, voltage, current,
           ✅ LSTM: Normal Pattern Detected
         </p>
       )}
+
+      <div className="mt-4 border-t border-slate-100 pt-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <span className="text-[10px] text-slate-400 font-bold uppercase">Manual Relay Control</span>
+          <PowerOff size={14} className="text-slate-400" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => onRelayControl(plugId, 'ON')}
+            disabled={isRelayActionPending}
+            className="px-3 py-2 text-xs font-bold rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:bg-slate-300"
+          >
+            Turn ON
+          </button>
+          <button
+            type="button"
+            onClick={() => onRelayControl(plugId, 'OFF')}
+            disabled={isRelayActionPending}
+            className="px-3 py-2 text-xs font-bold rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:bg-slate-300"
+          >
+            Turn OFF
+          </button>
+        </div>
+        {relayFeedback && (
+          <p className="text-[11px] text-slate-600 font-semibold mt-2">{relayFeedback}</p>
+        )}
+      </div>
     </div>
   );
 };
@@ -175,6 +223,12 @@ interface ThresholdResponse {
   message?: string;
   device?: string;
   threshold?: number;
+  error?: string;
+}
+
+interface RelayControlResponse {
+  message?: string;
+  state?: string;
   error?: string;
 }
 
@@ -337,6 +391,8 @@ export default function Dashboard() {
   const [isSidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [mqttConnected, setMqttConnected] = useState<boolean>(false);
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState<boolean>(false);
+  const [relayActionByPlug, setRelayActionByPlug] = useState<Record<string, 'ON' | 'OFF' | null>>({});
+  const [relayFeedbackByPlug, setRelayFeedbackByPlug] = useState<Record<string, string>>({});
 
   // 1. STATE: history stores [voltage, current] pairs for the LSTM
   const [appliances, setAppliances] = useState<Appliance[]>([]);
@@ -518,6 +574,37 @@ export default function Dashboard() {
   }, []);
   */
 
+  const handleRelayControl = useCallback(async (plugId: string, state: 'ON' | 'OFF') => {
+    setRelayActionByPlug(prev => ({ ...prev, [plugId]: state }));
+    setRelayFeedbackByPlug(prev => ({ ...prev, [plugId]: `Sending ${state} command...` }));
+
+    try {
+      const res = await fetch('/api/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plug_id: plugId, state })
+      });
+
+      const payload: RelayControlResponse = await res.json();
+      if (!res.ok) {
+        setRelayFeedbackByPlug(prev => ({
+          ...prev,
+          [plugId]: `Failed: ${payload.error || 'Relay command failed'}`
+        }));
+        return;
+      }
+
+      setRelayFeedbackByPlug(prev => ({
+        ...prev,
+        [plugId]: `Relay ${payload.state || state} command sent`
+      }));
+    } catch (err) {
+      setRelayFeedbackByPlug(prev => ({ ...prev, [plugId]: 'Failed: backend unreachable' }));
+    } finally {
+      setRelayActionByPlug(prev => ({ ...prev, [plugId]: null }));
+    }
+  }, []);
+
   const totalLoad: number = appliances.reduce((sum, app) => sum + (parseFloat(app.voltage) * parseFloat(app.current)), 0) / 1000;
   const plugIds: string[] = appliances.map(app => app.id);
 
@@ -578,6 +665,7 @@ export default function Dashboard() {
                 {appliances.map(app => (
                   <DeviceCard
                     key={app.id}
+                    plugId={app.id}
                     name={app.name}
                     voltage={app.voltage}
                     current={app.current}
@@ -589,6 +677,9 @@ export default function Dashboard() {
                     status={app.prediction === 'Abnormal' ? 'Abnormal' : 'Normal'}
                     type={app.prediction === 'Abnormal' ? 'warning' : 'online'}
                     score={app.score}
+                    onRelayControl={handleRelayControl}
+                    isRelayActionPending={relayActionByPlug[app.id] !== null && relayActionByPlug[app.id] !== undefined}
+                    relayFeedback={relayFeedbackByPlug[app.id]}
                   />
                 ))}
               </div>
