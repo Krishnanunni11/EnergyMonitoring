@@ -104,6 +104,7 @@ plug_buffers      = {}
 user_thresholds   = {}
 latest_predictions = {}
 latest_values     = {}
+prediction_enabled = {}
 
 # FIX 1: Use an Event to track real MQTT connection state
 #         instead of relying solely on is_connected() which
@@ -255,6 +256,15 @@ def on_message(client, userdata, msg):
 
         # Auto-predict every time the sliding window is full
         if count == WINDOW_SIZE:
+            if prediction_enabled.get(plug_id, True) is False:
+                latest_predictions[plug_id] = {
+                    "plug_id": plug_id,
+                    "status": "paused",
+                    "message": "Prediction paused: relay is manually OFF. Turn relay ON to resume.",
+                }
+                print(f"  ⏸️ Prediction paused for plug [{plug_id}] (manual relay OFF)")
+                return
+
             result = run_window_inference(plug_id)
             latest_predictions[plug_id] = result
 
@@ -334,6 +344,13 @@ mqtt_thread.start()
 # ──────────────────────────────────────────────
 
 def run_window_inference(plug_id: str) -> dict:
+    if prediction_enabled.get(plug_id, True) is False:
+        return {
+            "plug_id": plug_id,
+            "status":  "paused",
+            "message": "Prediction paused: relay is manually OFF. Turn relay ON to resume.",
+        }
+
     buffer = plug_buffers.get(plug_id)
     if buffer is None or len(buffer) < WINDOW_SIZE:
         collected = len(buffer) if buffer else 0
@@ -629,18 +646,38 @@ async def manual_relay_control(data: RelayControl):
     if data.state not in ("ON", "OFF"):
         raise HTTPException(status_code=400, detail="state must be 'ON' or 'OFF'")
 
-    success = control_relay(data.plug_id, data.state)
-    if success:
+    # Apply prediction mode immediately and deterministically.
+    # OFF pauses predictions until an explicit ON is received.
+    if data.state == "OFF":
+        prediction_enabled[data.plug_id] = False
+        latest_predictions[data.plug_id] = {
+            "plug_id": data.plug_id,
+            "status": "paused",
+            "message": "Prediction paused: relay manually turned OFF.",
+        }
+    else:
+        prediction_enabled[data.plug_id] = True
+
+    relay_sent = control_relay(data.plug_id, data.state)
+
+    if relay_sent:
         return {
             "message": "Relay command sent",
             "plug_id": data.plug_id,
             "state":   data.state,
-            "note":    "Automatic control resumes on next prediction window",
+            "prediction_enabled": prediction_enabled.get(data.plug_id, True),
+            "relay_command_sent": True,
+            "note":    "Prediction pauses on OFF and resumes on ON",
         }
-    raise HTTPException(
-        status_code=503,
-        detail="MQTT not connected or publish failed. Check broker connectivity.",
-    )
+
+    return {
+        "message": "Prediction mode updated, but relay command was not delivered",
+        "plug_id": data.plug_id,
+        "state": data.state,
+        "prediction_enabled": prediction_enabled.get(data.plug_id, True),
+        "relay_command_sent": False,
+        "note": "Prediction state still follows OFF/ON even if MQTT is unavailable",
+    }
 
 
 @app.get("/mqtt-status")
