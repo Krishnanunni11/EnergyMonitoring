@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl } from '../../../../lib/backend';
 
 export async function POST(req: Request) {
     try {
@@ -11,7 +12,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const response = await fetch('http://127.0.0.1:8000/set-threshold', {
+        const response = await fetch(`${getBackendUrl()}/set-threshold`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plug_id, device, threshold: Number(threshold) }),

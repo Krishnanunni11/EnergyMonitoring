@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl } from '../../../../lib/backend';
 
 export async function GET() {
   try {
-    const sensorResponse = await fetch('http://127.0.0.1:8000/sensor-data', {
+    const sensorResponse = await fetch(`${getBackendUrl()}/sensor-data`, {
       cache: 'no-store'
     });
 
@@ -36,7 +37,7 @@ export async function GET() {
       return NextResponse.json({ data: sensorData });
     }
 
-    const predictResponse = await fetch('http://127.0.0.1:8000/predict', {
+    const predictResponse = await fetch(`${getBackendUrl()}/predict`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ appliances: appliancesForPrediction }),

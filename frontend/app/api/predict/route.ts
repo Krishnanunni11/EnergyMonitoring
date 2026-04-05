@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl } from '../../../../lib/backend';
 
 export async function POST(req: Request) {
     try {
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No valid appliance data found' }, { status: 400 });
         }
 
-        const response = await fetch('http://127.0.0.1:8000/predict', {
+        const response = await fetch(`${getBackendUrl()}/predict`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

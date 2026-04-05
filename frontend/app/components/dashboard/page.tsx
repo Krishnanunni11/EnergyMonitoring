@@ -476,7 +476,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchPredictions = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:8000/latest-predictions', {
+        const res = await fetch('/api/latest-predictions', {
           cache: 'no-store'
         });
 

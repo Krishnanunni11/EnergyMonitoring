@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl } from '../../../../lib/backend';
 
 type RelayState = 'ON' | 'OFF';
 
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const response = await fetch('http://127.0.0.1:8000/relay/control', {
+    const response = await fetch(`${getBackendUrl()}/relay/control`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ plug_id: String(plug_id), state: normalizedState }),

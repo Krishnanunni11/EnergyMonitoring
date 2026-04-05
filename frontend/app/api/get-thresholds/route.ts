@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getBackendUrl } from '../../../../lib/backend';
 
 export async function GET() {
     try {
-        const response = await fetch('http://127.0.0.1:8000/get-thresholds', {
+        const response = await fetch(`${getBackendUrl()}/get-thresholds`, {
             cache: 'no-store'
         });
 

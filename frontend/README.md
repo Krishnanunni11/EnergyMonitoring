@@ -20,6 +20,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Backend Configuration
+
+When deploying the frontend separately from the Python backend, set `BACKEND_URL` for the Next.js API routes. If you later add browser-side direct fetches to the backend, use `NEXT_PUBLIC_BACKEND_URL` for those calls.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
