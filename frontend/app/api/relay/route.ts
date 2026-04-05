@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getBackendUrl } from '../../../../lib/backend';
+import { getBackendUrl } from '../../../lib/backend';
 
 type RelayState = 'ON' | 'OFF';
 
