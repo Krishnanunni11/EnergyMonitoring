@@ -44,6 +44,8 @@ py api.py
 
 Backend default URL: `http://127.0.0.1:8000`
 
+For Render, run the backend as a web service and bind to the platform port via `PORT`.
+
 ## Frontend Setup
 
 From `frontend/`:

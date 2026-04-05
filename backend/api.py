@@ -56,7 +56,8 @@ app.add_middleware(
 # Model Loading
 # ──────────────────────────────────────────────
 
-MODELS_DIR = "models"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_DIR = os.path.join(BASE_DIR, "models")
 device_registry = {}
 
 def load_all_models():
@@ -697,4 +698,5 @@ async def mqtt_status():
 # ──────────────────────────────────────────────
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
