@@ -1,4 +1,4 @@
-const FALLBACK_BACKEND_URL = "http://127.0.0.1:8000";
+const FALLBACK_BACKEND_URL = "https://energymonitoring-sf4p.onrender.com";
 
 function normalizeBackendUrl(url: string | undefined) {
   return (url ?? FALLBACK_BACKEND_URL).replace(/\/$/, "");
